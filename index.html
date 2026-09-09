@@ -1,14 +1,23 @@
 <!DOCTYPE html>
 <html lang="ja">
   <head>
-    <script src="https://cdn.jsdelivr.net/npm/p5@1.11.10/lib/p5.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/p5@1.11.10/lib/addons/p5.sound.min.js"></script>
     <link rel="stylesheet" type="text/css" href="style.css">
-    <meta charset="utf-8" />
-
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>数式ラボ | 計算と逆算</title>
   </head>
   <body>
-    <main>
+    <main class="app-shell">
+      <header class="topbar"><div class="brand-mark" aria-hidden="true">Σ</div><div><p class="eyebrow">NUMBER WORKBENCH</p><h1>数式ラボ</h1></div><div class="topbar-note">入力した数値を、<br>計算・逆算できます。</div></header>
+      <section class="intro" aria-labelledby="page-title"><p class="section-kicker">CALCULATOR / 01</p><h2 id="page-title">数値の関係を<br><em>見つける。</em></h2><p class="intro-copy">3つの値と演算子を組み合わせて計算。結果を先に入力すれば、空欄の値も予測できます。</p></section>
+      <section class="workspace" aria-label="計算ワークスペース">
+        <div class="panel equation-panel"><div class="panel-heading"><div><p class="section-kicker">EQUATION BUILDER</p><h3>式をつくる</h3></div><button class="text-button" id="clearButton" type="button">リセット <span>↗</span></button></div>
+          <div class="equation" aria-label="計算式"><label class="number-field"><span class="sr-only">1つ目の値</span><input id="valueA" type="number" inputmode="decimal" step="any" placeholder="空欄"></label><select id="operatorOne" aria-label="1つ目の演算子"><option value="+">＋</option><option value="-">−</option><option value="*">×</option><option value="/">÷</option></select><label class="number-field"><span class="sr-only">2つ目の値</span><input id="valueB" type="number" inputmode="decimal" step="any" placeholder="空欄"></label><select id="operatorTwo" aria-label="2つ目の演算子"><option value="+">＋</option><option value="-">−</option><option value="*">×</option><option value="/">÷</option></select><label class="number-field"><span class="sr-only">3つ目の値</span><input id="valueC" type="number" inputmode="decimal" step="any" placeholder="空欄"></label><span class="equals">＝</span><label class="number-field result-field"><span class="sr-only">結果</span><input id="result" type="number" inputmode="decimal" step="any" placeholder="結果"></label></div>
+          <div class="helper-row"><span class="status-dot" id="statusDot"></span><p id="statusMessage" aria-live="polite">すべての値を入力すると計算できます。</p></div><div class="action-row"><button class="primary-button" id="calculateButton" type="button">計算する <span>→</span></button><button class="secondary-button" id="solveButton" type="button">空欄を逆算 <span>⌁</span></button></div>
+        </div>
+        <aside class="panel guide-panel"><p class="section-kicker">HOW IT WORKS</p><h3>使い方</h3><ol><li><span>01</span> 数値と演算子を入力</li><li><span>02</span> 「計算する」で結果を確認</li><li><span>03</span> 結果を残して1つ空欄にすると逆算</li></ol><div class="tip"><strong>TIP</strong><p>四則演算に対応。小数や負の数も入力できます。</p></div></aside>
+      </section>
+      <section class="result-strip" aria-live="polite"><div><p class="section-kicker">LATEST ANSWER</p><p class="answer" id="answer">—</p></div><p class="answer-note" id="answerNote">式を入力して答えを表示しましょう。</p></section><footer><span>数式ラボ</span><span>Simple tools for clear thinking.</span></footer>
     </main>
     <script src="sketch.js"></script>
   </body>
