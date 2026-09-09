@@ -1,0 +1,12 @@
+{
+  "name": "p5js-static-site",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ritwickdey.LiveServer"
+      ]
+    }
+  },
+  "forwardPorts": [5500]
+}
