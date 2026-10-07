@@ -174,16 +174,210 @@ function calculate() {
   updateStatus(`計算完了: ${expression}`, 'success');
 }
 
-function evaluateWithMissingValue(expression, names, values, missingIndex, candidate) {
-  const filled = values.map((value, index) => {
-    if (index === missingIndex) {
-      return candidate;
-    }
-    return Number.isFinite(value) ? value : 0;
-  });
+function parseInverseExpression(expression) {
+  const tokenPattern = /\s*((?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?|(v\d+)|([()+\-*\/]))/y;
+  const tokens = [];
+  let position = 0;
 
-  const evaluation = evaluateExpression(expression, names, filled);
-  return evaluation.valid ? evaluation.value : Number.NaN;
+  while (position < expression.length) {
+    if (expression.slice(position).trim() === '') {
+      break;
+    }
+
+    tokenPattern.lastIndex = position;
+    const match = tokenPattern.exec(expression);
+    if (!match) {
+      throw new Error('逆算では四則演算と括弧のみ使用できます。');
+    }
+
+    tokens.push(match[1] ?? match[2] ?? match[3]);
+    position = tokenPattern.lastIndex;
+  }
+
+  let cursor = 0;
+  const precedence = { '+': 1, '-': 1, '*': 2, '/': 2 };
+
+  function parsePrimary() {
+    const token = tokens[cursor];
+    if (token === '+' || token === '-') {
+      cursor += 1;
+      return { type: 'unary', operator: token, argument: parsePrimary() };
+    }
+
+    if (token === '(') {
+      cursor += 1;
+      const expressionNode = parseBinaryExpression(0);
+      if (tokens[cursor] !== ')') {
+        throw new Error('式の括弧を確認してください。');
+      }
+      cursor += 1;
+      return expressionNode;
+    }
+
+    if (token && /^v\d+$/.test(token)) {
+      cursor += 1;
+      return { type: 'variable', index: Number(token.slice(1)) };
+    }
+
+    if (token && Number.isFinite(Number(token))) {
+      cursor += 1;
+      return { type: 'number', value: Number(token) };
+    }
+
+    throw new Error('式の書き方を確認してください。');
+  }
+
+  function parseBinaryExpression(minimumPrecedence) {
+    let left = parsePrimary();
+
+    while (cursor < tokens.length) {
+      const operator = tokens[cursor];
+      const operatorPrecedence = precedence[operator];
+      if (operatorPrecedence === undefined || operatorPrecedence < minimumPrecedence) {
+        break;
+      }
+
+      cursor += 1;
+      const right = parseBinaryExpression(operatorPrecedence + 1);
+      left = { type: 'binary', operator, left, right };
+    }
+
+    return left;
+  }
+
+  const expressionNode = parseBinaryExpression(0);
+  if (cursor !== tokens.length) {
+    throw new Error('式の書き方を確認してください。');
+  }
+  return expressionNode;
+}
+
+function evaluateInverseExpression(node, values) {
+  if (node.type === 'number') {
+    return node.value;
+  }
+  if (node.type === 'variable') {
+    return values[node.index];
+  }
+  if (node.type === 'unary') {
+    const value = evaluateInverseExpression(node.argument, values);
+    return node.operator === '-' ? -value : value;
+  }
+
+  const left = evaluateInverseExpression(node.left, values);
+  const right = evaluateInverseExpression(node.right, values);
+  switch (node.operator) {
+    case '+': return left + right;
+    case '-': return left - right;
+    case '*': return left * right;
+    case '/': return left / right;
+    default: return Number.NaN;
+  }
+}
+
+function countVariableOccurrences(node, variableIndex) {
+  if (node.type === 'variable') {
+    return node.index === variableIndex ? 1 : 0;
+  }
+  if (node.type === 'number') {
+    return 0;
+  }
+  if (node.type === 'unary') {
+    return countVariableOccurrences(node.argument, variableIndex);
+  }
+  return countVariableOccurrences(node.left, variableIndex)
+    + countVariableOccurrences(node.right, variableIndex);
+}
+
+function solveInverseExpression(node, target, variableIndex, values) {
+  if (node.type === 'variable') {
+    if (node.index !== variableIndex) {
+      throw new Error('式に空欄の変数が含まれていません。');
+    }
+    return target;
+  }
+
+  if (node.type === 'unary') {
+    return solveInverseExpression(
+      node.argument,
+      node.operator === '-' ? -target : target,
+      variableIndex,
+      values,
+    );
+  }
+
+  if (node.type !== 'binary') {
+    throw new Error('式に空欄の変数が含まれていません。');
+  }
+
+  const leftOccurrences = countVariableOccurrences(node.left, variableIndex);
+  const rightOccurrences = countVariableOccurrences(node.right, variableIndex);
+  if (leftOccurrences + rightOccurrences !== 1) {
+    throw new Error('空欄の変数は式中に1回だけ含めてください。');
+  }
+
+  const unknownIsLeft = leftOccurrences === 1;
+  const knownNode = unknownIsLeft ? node.right : node.left;
+  const knownValue = evaluateInverseExpression(knownNode, values);
+  if (!Number.isFinite(knownValue)) {
+    throw new Error('既知の値で計算できない箇所があります。式や値を確認してください。');
+  }
+
+  let nextTarget;
+  if (node.operator === '+') {
+    nextTarget = target - knownValue;
+  } else if (node.operator === '-') {
+    nextTarget = unknownIsLeft ? target + knownValue : knownValue - target;
+  } else if (node.operator === '*') {
+    if (knownValue === 0) {
+      throw new Error(target === 0
+        ? '既知の値が0のため、空欄の値を一意に決められません。'
+        : '既知の値が0のため、目標値を実現する値がありません。');
+    }
+    nextTarget = target / knownValue;
+  } else if (node.operator === '/') {
+    if (unknownIsLeft) {
+      if (knownValue === 0) {
+        throw new Error('分母が0になるため逆算できません。');
+      }
+      nextTarget = target * knownValue;
+    } else {
+      if (target === 0 && knownValue === 0) {
+        throw new Error('分子と目標値が0のため、分母を一意に決められません。');
+      }
+      if (target === 0 || knownValue === 0) {
+        throw new Error('この除算では目標値を満たす有限の値がありません。');
+      }
+      nextTarget = knownValue / target;
+    }
+  }
+
+  if (!Number.isFinite(nextTarget)) {
+    throw new Error('逆算結果が有限値になりません。式や値を確認してください。');
+  }
+  return solveInverseExpression(unknownIsLeft ? node.left : node.right, nextTarget, variableIndex, values);
+}
+
+function solveExpressionForVariable(expression, names, values, missingIndex, target) {
+  const prepared = replaceVariableNamesWithTokens(expression, names);
+  if (!prepared) {
+    throw new Error('計算式を入力してください。');
+  }
+
+  const expressionNode = parseInverseExpression(prepared);
+  const occurrenceCount = countVariableOccurrences(expressionNode, missingIndex);
+  if (occurrenceCount !== 1) {
+    throw new Error('空欄の変数は式中に1回だけ含めてください。');
+  }
+
+  const solved = solveInverseExpression(expressionNode, target, missingIndex, values);
+  const filledValues = values.map((value, index) => (index === missingIndex ? solved : value));
+  const result = evaluateInverseExpression(expressionNode, filledValues);
+  const tolerance = 1e-9 * Math.max(1, Math.abs(target));
+  if (!Number.isFinite(result) || Math.abs(result - target) > tolerance) {
+    throw new Error('この式では目標値を満たす逆算結果がありません。');
+  }
+  return solved;
 }
 
 function solveMissingVariable() {
@@ -211,44 +405,11 @@ function solveMissingVariable() {
   }
 
   const missingIndex = missingIndexes[0];
-  const low = -1000000;
-  const high = 1000000;
-  let left = low;
-  let right = high;
-  let leftValue = evaluateWithMissingValue(expression, names, values, missingIndex, left);
-  let rightValue = evaluateWithMissingValue(expression, names, values, missingIndex, right);
-
-  if (!Number.isFinite(leftValue) || !Number.isFinite(rightValue)) {
-    updateStatus('この式では逆算できません。値の組み合わせを見直してください。', 'warning');
-    return;
-  }
-
-  let solved = Number.NaN;
-  for (let i = 0; i < 200; i += 1) {
-    const mid = (left + right) / 2;
-    const midValue = evaluateWithMissingValue(expression, names, values, missingIndex, mid);
-
-    if (!Number.isFinite(midValue)) {
-      right = mid;
-      continue;
-    }
-
-    if (Math.abs(midValue - target) < 1e-6) {
-      solved = mid;
-      break;
-    }
-
-    if ((leftValue - target) * (midValue - target) <= 0) {
-      right = mid;
-      rightValue = midValue;
-    } else {
-      left = mid;
-      leftValue = midValue;
-    }
-  }
-
-  if (!Number.isFinite(solved)) {
-    updateStatus('逆算の結果が収束しませんでした。式や値を確認してください。', 'warning');
+  let solved;
+  try {
+    solved = solveExpressionForVariable(expression, names, values, missingIndex, target);
+  } catch (error) {
+    updateStatus(error.message, 'warning');
     return;
   }
 
