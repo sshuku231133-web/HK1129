@@ -382,7 +382,8 @@ function solveExpressionForVariable(expression, names, values, missingIndex, tar
 
 function solveMissingVariable() {
   const expression = formulaInput.value.trim();
-  const target = Number(targetValueInput.value);
+  const targetValue = targetValueInput.value.trim();
+  const target = Number(targetValue);
   const names = getCurrentNames();
   const values = getCurrentValues();
   const missingIndexes = values
@@ -394,7 +395,7 @@ function solveMissingVariable() {
     return;
   }
 
-  if (!Number.isFinite(target)) {
+  if (targetValue === '' || !Number.isFinite(target)) {
     updateStatus('目標値を入力してください。', 'warning');
     return;
   }
@@ -467,7 +468,7 @@ resetAllButton.addEventListener('click', resetCalculator);
 clearFormulaButton.addEventListener('click', () => {
   formulaInput.value = '';
   formulaInput.focus();
-  updateStatus('式をクリアしました。', 'default');
+  updateStatus('式をリセットしました。', 'default');
 });
 
 formulaInput.addEventListener('keydown', (event) => {

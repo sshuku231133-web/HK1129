@@ -52,7 +52,6 @@
 
         <div class="setup-actions">
           <button type="button" class="secondary-button" id="resetAllButton">全てリセット</button>
-          <button type="button" class="primary-button" id="solveMissingButton">空欄を逆算</button>
         </div>
         <p class="helper-text">1つだけ空欄にして、他の変数と目標値を入力すると逆算できます。</p>
       </section>
@@ -76,7 +75,7 @@
         </div>
 
         <label class="sr-only" for="formulaInput">計算式</label>
-        <textarea id="formulaInput" rows="3" spellcheck="false" placeholder="例: 攻撃力 * (威力 + 追加ダメージ)"></textarea>
+        <textarea id="formulaInput" rows="3" spellcheck="false" placeholder="例: ( 攻撃力 + 攻撃力バフ ) * 威力 + 追加ダメージ "></textarea>
 
         <div class="chip-list" id="variableChips" aria-label="変数チップ"></div>
         <p class="helper-text">変数名は自由に設定できます。演算子や括弧を使って、ゲームの式をそのまま組み立てられます。</p>
@@ -95,6 +94,7 @@
           <p id="statusMessage">数値と式を入力して計算します。</p>
           <div class="action-row">
             <button class="primary-button" id="calculateButton" type="button">計算する</button>
+            <button type="button" class="primary-button" id="solveMissingButton">空欄を逆算</button>
           </div>
         </div>
       </section>
